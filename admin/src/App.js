@@ -2,7 +2,7 @@ import React from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./pages/Layout";
-import News from "./pages/News";
+import News from "./pages/News/News";
 import NoPage from "./pages/NoPage";
 const App = () => {
   return (

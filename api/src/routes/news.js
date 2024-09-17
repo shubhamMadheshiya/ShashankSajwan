@@ -41,15 +41,25 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST: Add news
+// POST: Add news
 router.post('/', upload.single('image'), async (req, res) => {
 	const { driveLink } = req.body;
 
+	// Check if the driveLink is present
 	if (!driveLink) {
 		return res.status(400).json({ error: 'Drive Link is required.' });
 	}
 
+	// Check if the image file is present
+	if (!req.file) {
+		return res.status(400).json({ error: 'Image is required.' });
+	}
+
 	try {
-		const { imageUrl, imageKey } = req.file ? await s3Upload(req.file) : {};
+		// Upload the image to S3 or another storage service
+		const { imageUrl, imageKey } = await s3Upload(req.file);
+
+		// Create a new news entry with the uploaded image and drive link
 		const news = new News({ imageUrl, imageKey, driveLink });
 		await news.save();
 
@@ -76,6 +86,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 
 		const updateData = {};
 		if (driveLink) updateData.driveLink = driveLink;
+		console.log(req.file)
 
 		if (req.file) {
 			await removeImage(news.imageKey);
@@ -85,6 +96,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 		}
 
 		const updatedNews = await News.findByIdAndUpdate(newsId, updateData, { new: true });
+		console.log(updatedNews);
 		res.status(200).json({
 			success: true,
 			message: 'News has been updated successfully!',
@@ -118,7 +130,8 @@ router.delete('/:id', async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
-	const { page = 1, limit = 10, month, year } = req.query;
+	
+	const { page = 1, limit = 12, month, year } = req.query;
 
 	try {
 		const query = {}; // Empty filter query object
@@ -146,13 +159,12 @@ router.get('/', async (req, res) => {
 
 		// Execute the query with pagination
 		const newses = await News.find(query)
-			.select('-driveLink') // Exclude the 'driveLink' field from the response
 			.sort('-createdAt') // Sort by newest first
 			.limit(limit * 1) // Limit the number of results
 			.skip((page - 1) * limit); // Skip records for pagination
 
 		const count = await News.countDocuments(query); // Get total count with the applied filters
-
+		
 		res.status(200).json({
 			success: true,
 			data: newses,
@@ -167,7 +179,5 @@ router.get('/', async (req, res) => {
 		});
 	}
 });
-
-
 
 module.exports = router;

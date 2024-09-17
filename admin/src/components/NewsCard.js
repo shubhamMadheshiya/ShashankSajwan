@@ -22,28 +22,26 @@ import {
   MenuItem,
   styled,
   TextField,
+  Avatar,
+  Snackbar,
+  Alert,
 } from "@mui/material";
+import {
+  useDeleteNewsMutation,
+  useEditNewsMutation,
+} from "../pages/News/newsApi"; // Import RTK hooks
 
 // Alert Dialog Component
-const AlertDialog = ({ open, onClose }) => {
+const AlertDialog = ({ open, onClose, onDelete }) => {
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      aria-labelledby="alert-dialog-title"
-      aria-describedby="alert-dialog-description"
-    >
-      <DialogTitle id="alert-dialog-title">
-        {"Are you sure you want to delete this?"}
-      </DialogTitle>
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>{"Are you sure you want to delete this?"}</DialogTitle>
       <DialogContent>
-        <DialogContentText id="alert-dialog-description">
-          This action cannot be undone.
-        </DialogContentText>
+        <DialogContentText>This action cannot be undone.</DialogContentText>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={onClose} color="error" autoFocus>
+        <Button onClick={onDelete} color="error" autoFocus>
           Delete
         </Button>
       </DialogActions>
@@ -52,7 +50,14 @@ const AlertDialog = ({ open, onClose }) => {
 };
 
 // Edit Dialog Component
-const EditDialog = ({ open, onClose }) => {
+const EditDialog = ({ open, onClose, newsItem, onUpdate }) => {
+  const [formValues, setFormValues] = React.useState({
+    driveLink: newsItem?.driveLink || "",
+    imageUrl: newsItem?.imageUrl || "",
+  });
+  const [fileError, setFileError] = React.useState(""); // State for file error
+  const [successSnackbar, setSuccessSnackbar] = React.useState(false); // State for Snackbar
+
   const VisuallyHiddenInput = styled("input")({
     clip: "rect(0 0 0 0)",
     clipPath: "inset(50%)",
@@ -67,22 +72,44 @@ const EditDialog = ({ open, onClose }) => {
 
   const handleFormSubmit = (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const formJson = Object.fromEntries(formData.entries());
-    const driveLink = formJson.driveLink;
-    console.log("Drive Link:", driveLink);
-    // Close dialog after submission
+    onUpdate(formValues); // Send updated data to the parent
+    setSuccessSnackbar(true); // Show success message
     onClose();
+  };
+
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      if (file.type === "image/png" || file.type === "image/jpeg") {
+        if (file.size <= 5 * 1024 * 1024) {
+          setFormValues((prev) => ({
+            ...prev,
+            imageUrl: URL.createObjectURL(file),
+          }));
+          setFileError(""); // Clear the error when a valid file is selected
+        } else {
+          setFileError("File size must be less than 5MB.");
+        }
+      } else {
+        setFileError("Only PNG and JPEG files are allowed.");
+      }
+    }
+  };
+
+  const handleSnackbarClose = () => {
+    setSuccessSnackbar(false);
   };
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      PaperProps={{
-        component: "form",
-        onSubmit: handleFormSubmit,
-      }}
+      PaperProps={{ component: "form", onSubmit: handleFormSubmit }}
     >
       <DialogTitle>Edit</DialogTitle>
       <DialogContent>
@@ -99,6 +126,8 @@ const EditDialog = ({ open, onClose }) => {
           type="url"
           fullWidth
           variant="outlined"
+          value={formValues.driveLink}
+          onChange={handleInputChange}
         />
         <Button
           component="label"
@@ -107,26 +136,43 @@ const EditDialog = ({ open, onClose }) => {
           sx={{ mt: 2 }}
         >
           Upload Thumbnail
-          <VisuallyHiddenInput
-            type="file"
-            onChange={(event) => console.log(event.target.files)}
-            multiple
-          />
+          <VisuallyHiddenInput type="file" onChange={handleFileChange} />
         </Button>
+        {formValues.imageUrl && (
+          <Avatar
+            alt="Thumbnail Preview"
+            src={formValues.imageUrl}
+            sx={{ width: 200, height: 120, mt: 2 }}
+            variant="rounded"
+          />
+        )}
+        {fileError && <Alert severity="warning">{fileError}</Alert>}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
         <Button type="submit">Save</Button>
       </DialogActions>
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={successSnackbar}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        message="News updated successfully!"
+      />
     </Dialog>
   );
 };
 
-export default function RecipeReviewCard() {
+export default function NewsCard({ newsItem }) {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [alertOpen, setAlertOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const open = Boolean(anchorEl);
+
+  // RTK Query hooks
+  const [deleteNews] = useDeleteNewsMutation();
+  const [updateNews] = useEditNewsMutation();
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -154,13 +200,32 @@ export default function RecipeReviewCard() {
     setEditOpen(false);
   };
 
+  const handleDelete = async () => {
+    try {
+      await deleteNews(newsItem._id);
+    } catch (error) {
+      console.error("Failed to delete news item:", error);
+    } finally {
+      setAlertOpen(false);
+    }
+  };
+
+  const handleUpdate = async (updatedData) => {
+    try {
+      await updateNews({ id: newsItem._id, ...updatedData });
+    } catch (error) {
+      console.error("Failed to update news item:", error);
+    }
+  };
+
   return (
-    <Card sx={{ maxWidth: 345, position: "relative" }}>
+    <Card sx={{ maxWidth: 345, minWidth: 280, position: "relative" }}>
       <CardMedia
         component="img"
         height="194"
-        image="https://news.ubc.ca/wp-content/uploads/2023/08/AdobeStock_559145847.jpeg"
-        alt="Paella dish"
+        image={newsItem.imageUrl}
+        // alt={newsItem.title}
+        sx={{ width: "100%" }}
       />
       <CardActions
         disableSpacing
@@ -168,21 +233,17 @@ export default function RecipeReviewCard() {
           display: "flex",
           justifyContent: "flex-end",
           position: "absolute",
-          zIndex: 2,
           top: 0,
           right: 0,
-          left: 0,
         }}
       >
         <IconButton
-          aria-label="add to favorites"
           size="small"
           sx={{ bgcolor: "rgba(0, 0, 0, 0.5);", m: 0.4 }}
         >
           <AttachFile sx={{ color: "#fff" }} fontSize="small" />
         </IconButton>
         <IconButton
-          aria-label="more options"
           onClick={handleClick}
           size="small"
           sx={{ bgcolor: "rgba(0, 0, 0, 0.5);", m: 0.4 }}
@@ -193,33 +254,8 @@ export default function RecipeReviewCard() {
       <Menu
         anchorEl={anchorEl}
         id="account-menu"
-        open={open}
+        open={Boolean(anchorEl)}
         onClose={handleClose}
-        onClick={handleClose}
-        slotProps={{
-          paper: {
-            elevation: 0,
-            sx: {
-              overflow: "visible",
-              filter: "drop-shadow(0px 2px 8px rgba(0,0,0,0.32))",
-              mt: 1.5,
-              "&::before": {
-                content: '""',
-                display: "block",
-                position: "absolute",
-                top: 0,
-                right: 14,
-                width: 10,
-                height: 10,
-                bgcolor: "background.paper",
-                transform: "translateY(-50%) rotate(45deg)",
-                zIndex: 0,
-              },
-            },
-          },
-        }}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       >
         <MenuItem onClick={handleEditOpen}>
           <ListItemIcon>
@@ -235,11 +271,20 @@ export default function RecipeReviewCard() {
         </MenuItem>
       </Menu>
 
-      {/* Alert Dialog */}
-      <AlertDialog open={alertOpen} onClose={handleAlertClose} />
+      {/* Alert Dialog for Delete Confirmation */}
+      <AlertDialog
+        open={alertOpen}
+        onClose={handleAlertClose}
+        onDelete={handleDelete}
+      />
 
-      {/* Edit Dialog */}
-      <EditDialog open={editOpen} onClose={handleEditClose} />
+      {/* Edit Dialog for Updating News */}
+      <EditDialog
+        open={editOpen}
+        onClose={handleEditClose}
+        newsItem={newsItem}
+        onUpdate={handleUpdate}
+      />
     </Card>
   );
 }
