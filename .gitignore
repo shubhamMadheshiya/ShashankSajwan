@@ -1,0 +1,72 @@
+
+
+# backend
+
+api/build/Release
+
+# Dependency directories
+api/node_modules/
+api/jspm_packages/
+
+# Snowpack dependency directory (https://snowpack.dev/)
+api/web_modules/
+
+
+# Optional npm cache directory
+api/.npm
+
+# Optional eslint cache
+api/.eslintcache
+
+# Optional stylelint cache
+api/.stylelintcache
+
+
+
+
+# dotenv environment variable files
+api/.env
+
+
+# parcel-bundler cache (https://parceljs.org/)
+api/.cache
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#frontend
+
+# dependencies
+admin/node_modules
+admin/.pnp
+admin.pnp.js
+
+# testing
+admin/coverage
+
+# production
+admin/build
+
+# misc
+admin/.DS_Store
+admin/.env.local
+admin/.env.development.local
+admin/.env.test.local
+admin/.env.production.local
+
+admin/npm-debug.log*
+admin/yarn-debug.log*
+admin/yarn-error.log*
+
