@@ -25,79 +25,117 @@ import {
   Avatar,
   Snackbar,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 import {
   useDeleteNewsMutation,
   useEditNewsMutation,
 } from "../pages/News/newsApi"; // Import RTK hooks
 
-// Alert Dialog Component
-const AlertDialog = ({ open, onClose, onDelete }) => {
+// Delete Dialog Component
+const DeleteDialog = ({ open, onClose, newsItem, setDeleteOpen }) => {
+  const [deleteNews, { isLoading, error, isSuccess }] = useDeleteNewsMutation();
+  const [successSnackbar, setSuccessSnackbar] = React.useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteNews(newsItem._id);
+    } catch (error) {
+      console.error("Failed to delete news item:", error);
+    } finally {
+      setDeleteOpen(false);
+    }
+  };
+  const handleSnackbarClose = () => {
+    setSuccessSnackbar(false);
+  };
+
+  React.useEffect(() => {
+    if (isSuccess) {
+      setDeleteOpen(false);
+    }
+  }, [isSuccess, setDeleteOpen]);
+
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>{"Are you sure you want to delete this?"}</DialogTitle>
+      <DialogTitle>Are you sure you want to delete this news item?</DialogTitle>
       <DialogContent>
         <DialogContentText>This action cannot be undone.</DialogContentText>
+        {error && (
+          <Alert severity="error">Failed to delete: {error.message}</Alert>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={onDelete} color="error" autoFocus>
-          Delete
+        <Button onClick={handleDelete} color="error" disabled={isLoading}>
+          {isLoading ? <CircularProgress size={24} /> : "Delete"}
         </Button>
       </DialogActions>
+      <Snackbar
+        open={successSnackbar}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        message="News updated successfully!"
+      />
     </Dialog>
   );
 };
 
 // Edit Dialog Component
-const EditDialog = ({ open, onClose, newsItem, onUpdate }) => {
-  const [formValues, setFormValues] = React.useState({
-    driveLink: newsItem?.driveLink || "",
-    imageUrl: newsItem?.imageUrl || "",
-  });
-  const [fileError, setFileError] = React.useState(""); // State for file error
-  const [successSnackbar, setSuccessSnackbar] = React.useState(false); // State for Snackbar
+const EditDialog = ({ open, onClose, newsItem }) => {
+  const [thumbnailFile, setThumbnailFile] = React.useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = React.useState(
+    newsItem?.imageUrl || ""
+  ); // Default to current image
+  const [errorMessage, setErrorMessage] = React.useState(null);
+  const [successSnackbar, setSuccessSnackbar] = React.useState(false);
 
-  const VisuallyHiddenInput = styled("input")({
-    clip: "rect(0 0 0 0)",
-    clipPath: "inset(50%)",
-    height: 1,
-    overflow: "hidden",
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    whiteSpace: "nowrap",
-    width: 1,
-  });
+  // RTK Query hook
+  const [
+    updateNews,
+    {
+      isLoading: updateIsLoading,
+      error: updateIsError,
+      isSuccess: updateIsSuccess,
+    },
+  ] = useEditNewsMutation();
 
-  const handleFormSubmit = (event) => {
+  React.useEffect(() => {
+    if (updateIsSuccess) {
+      setSuccessSnackbar(true);
+      onClose();
+    }
+  }, [updateIsSuccess, onClose]);
+
+  const handleFormSubmit = async (event) => {
     event.preventDefault();
-    onUpdate(formValues); // Send updated data to the parent
-    setSuccessSnackbar(true); // Show success message
-    onClose();
-  };
 
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
-    setFormValues((prev) => ({ ...prev, [name]: value }));
+    const formData = new FormData(event.currentTarget); // Form data
+    formData.append("image", thumbnailFile); // Append the file to formData
+
+    try {
+      await updateNews({ id: newsItem._id, formData });
+      setThumbnailFile(null);
+      setThumbnailPreview("");
+    } catch (error) {
+      console.error("Failed to update news item:", error);
+    }
   };
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      if (file.type === "image/png" || file.type === "image/jpeg") {
-        if (file.size <= 5 * 1024 * 1024) {
-          setFormValues((prev) => ({
-            ...prev,
-            imageUrl: URL.createObjectURL(file),
-          }));
-          setFileError(""); // Clear the error when a valid file is selected
-        } else {
-          setFileError("File size must be less than 5MB.");
-        }
-      } else {
-        setFileError("Only PNG and JPEG files are allowed.");
-      }
+    if (
+      file &&
+      (file.type === "image/png" || file.type === "image/jpeg") &&
+      file.size <= 5 * 1024 * 1024
+    ) {
+      setThumbnailFile(file);
+      setThumbnailPreview(URL.createObjectURL(file));
+      setErrorMessage(null);
+    } else {
+      setErrorMessage("Only PNG and JPEG files up to 5MB are allowed");
+      setThumbnailFile(null);
+      setThumbnailPreview("");
     }
   };
 
@@ -111,11 +149,8 @@ const EditDialog = ({ open, onClose, newsItem, onUpdate }) => {
       onClose={onClose}
       PaperProps={{ component: "form", onSubmit: handleFormSubmit }}
     >
-      <DialogTitle>Edit</DialogTitle>
+      <DialogTitle>Edit News Item</DialogTitle>
       <DialogContent>
-        <DialogContentText>
-          You can update the news thumbnail image and Drive link.
-        </DialogContentText>
         <TextField
           autoFocus
           required
@@ -126,9 +161,8 @@ const EditDialog = ({ open, onClose, newsItem, onUpdate }) => {
           type="url"
           fullWidth
           variant="outlined"
-          value={formValues.driveLink}
-          onChange={handleInputChange}
         />
+
         <Button
           component="label"
           variant="contained"
@@ -136,24 +170,28 @@ const EditDialog = ({ open, onClose, newsItem, onUpdate }) => {
           sx={{ mt: 2 }}
         >
           Upload Thumbnail
-          <VisuallyHiddenInput type="file" onChange={handleFileChange} />
+          <input type="file" hidden onChange={handleFileChange} />
         </Button>
-        {formValues.imageUrl && (
+        {thumbnailPreview && (
           <Avatar
-            alt="Thumbnail Preview"
-            src={formValues.imageUrl}
+            src={thumbnailPreview}
             sx={{ width: 200, height: 120, mt: 2 }}
             variant="rounded"
           />
         )}
-        {fileError && <Alert severity="warning">{fileError}</Alert>}
+        {errorMessage && <Alert severity="warning">{errorMessage}</Alert>}
+        {updateIsError && (
+          <Alert severity="error">
+            Failed to update news: {updateIsError.message}
+          </Alert>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button type="submit">Save</Button>
+        <Button type="submit" disabled={updateIsLoading || !!errorMessage}>
+          {updateIsLoading ? <CircularProgress size={24} /> : "Update News"}
+        </Button>
       </DialogActions>
-
-      {/* Success Snackbar */}
       <Snackbar
         open={successSnackbar}
         autoHideDuration={3000}
@@ -166,13 +204,9 @@ const EditDialog = ({ open, onClose, newsItem, onUpdate }) => {
 
 export default function NewsCard({ newsItem }) {
   const [anchorEl, setAnchorEl] = React.useState(null);
-  const [alertOpen, setAlertOpen] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const open = Boolean(anchorEl);
-
-  // RTK Query hooks
-  const [deleteNews] = useDeleteNewsMutation();
-  const [updateNews] = useEditNewsMutation();
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -182,13 +216,13 @@ export default function NewsCard({ newsItem }) {
     setAnchorEl(null);
   };
 
-  const handleAlertOpen = () => {
-    setAlertOpen(true);
+  const handleDeleteOpen = () => {
+    setDeleteOpen(true);
     handleClose();
   };
 
-  const handleAlertClose = () => {
-    setAlertOpen(false);
+  const handleDeleteClose = () => {
+    setDeleteOpen(false);
   };
 
   const handleEditOpen = () => {
@@ -198,24 +232,6 @@ export default function NewsCard({ newsItem }) {
 
   const handleEditClose = () => {
     setEditOpen(false);
-  };
-
-  const handleDelete = async () => {
-    try {
-      await deleteNews(newsItem._id);
-    } catch (error) {
-      console.error("Failed to delete news item:", error);
-    } finally {
-      setAlertOpen(false);
-    }
-  };
-
-  const handleUpdate = async (updatedData) => {
-    try {
-      await updateNews({ id: newsItem._id, ...updatedData });
-    } catch (error) {
-      console.error("Failed to update news item:", error);
-    }
   };
 
   return (
@@ -263,7 +279,7 @@ export default function NewsCard({ newsItem }) {
           </ListItemIcon>
           Edit
         </MenuItem>
-        <MenuItem onClick={handleAlertOpen} sx={{ color: "error.main" }}>
+        <MenuItem onClick={handleDeleteOpen} sx={{ color: "error.main" }}>
           <ListItemIcon>
             <Delete fontSize="small" sx={{ color: "error.main" }} />
           </ListItemIcon>
@@ -272,10 +288,12 @@ export default function NewsCard({ newsItem }) {
       </Menu>
 
       {/* Alert Dialog for Delete Confirmation */}
-      <AlertDialog
-        open={alertOpen}
-        onClose={handleAlertClose}
-        onDelete={handleDelete}
+      <DeleteDialog
+        open={deleteOpen}
+        onClose={handleDeleteClose}
+        // onDelete={handleDelete}
+        newsItem={newsItem}
+        setDeleteOpen={setDeleteOpen}
       />
 
       {/* Edit Dialog for Updating News */}
@@ -283,7 +301,6 @@ export default function NewsCard({ newsItem }) {
         open={editOpen}
         onClose={handleEditClose}
         newsItem={newsItem}
-        onUpdate={handleUpdate}
       />
     </Card>
   );

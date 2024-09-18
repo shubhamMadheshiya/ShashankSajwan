@@ -11,7 +11,10 @@ export const newsApi = apiSlice.injectEndpoints({
       },
       providesTags: (result) =>
         result
-          ? [...result.data.map(({ id }) => ({ type: "News", id })), "News"]
+          ? [
+              ...result.data.map(({ _id }) => ({ type: "News", id: _id })),
+              "News",
+            ]
           : ["News"],
     }),
 
@@ -21,16 +24,16 @@ export const newsApi = apiSlice.injectEndpoints({
         method: "POST",
         body: formData,
       }),
-      invalidatesTags: ["News"],
+      invalidatesTags: ["News"], // Invalidate all news data
     }),
 
     editNews: builder.mutation({
-      query: ({ id, ...formData }) => ({
+      query: ({ id, formData }) => ({
         url: `/news/${id}`,
         method: "PUT",
         body: formData,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: "News", id }],
+      invalidatesTags: (result, error, { id }) => [{ type: "News", id }], // Invalidate specific news item
     }),
 
     deleteNews: builder.mutation({
@@ -38,7 +41,7 @@ export const newsApi = apiSlice.injectEndpoints({
         url: `/news/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: (result, error, id) => [{ type: "News", id }],
+      invalidatesTags: (result, error, { id }) => [{ type: "News", id }], // Invalidate specific news item
     }),
   }),
 });

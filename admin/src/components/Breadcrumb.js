@@ -40,9 +40,9 @@ export default function CustomizedBreadcrumbs() {
           label="Home"
           icon={<HomeIcon fontSize="small" />}
         />
-        <StyledBreadcrumb component="a" href="#" label="Catalog" />
+        {/* <StyledBreadcrumb component="a" href="#" label="Catalog" /> */}
         <StyledBreadcrumb
-          label="Accessories"
+          label="News"
           deleteIcon={<ExpandMoreIcon />}
           onDelete={handleClick}
         />

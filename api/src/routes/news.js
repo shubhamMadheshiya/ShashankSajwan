@@ -44,6 +44,7 @@ router.get('/:id', async (req, res) => {
 // POST: Add news
 router.post('/', upload.single('image'), async (req, res) => {
 	const { driveLink } = req.body;
+	console.log(driveLink)
 
 	// Check if the driveLink is present
 	if (!driveLink) {
@@ -86,7 +87,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 
 		const updateData = {};
 		if (driveLink) updateData.driveLink = driveLink;
-		console.log(req.file)
+		
 
 		if (req.file) {
 			await removeImage(news.imageKey);
@@ -96,7 +97,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 		}
 
 		const updatedNews = await News.findByIdAndUpdate(newsId, updateData, { new: true });
-		console.log(updatedNews);
+		// console.log(updatedNews);
 		res.status(200).json({
 			success: true,
 			message: 'News has been updated successfully!',
@@ -162,6 +163,8 @@ router.get('/', async (req, res) => {
 			.sort('-createdAt') // Sort by newest first
 			.limit(limit * 1) // Limit the number of results
 			.skip((page - 1) * limit); // Skip records for pagination
+
+			console.log(newses)
 
 		const count = await News.countDocuments(query); // Get total count with the applied filters
 		

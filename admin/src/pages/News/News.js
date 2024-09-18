@@ -87,7 +87,8 @@ const AddNews = ({ open, onClose }) => {
     formData.append("image", thumbnailFile); // Append the file to formData
 
     try {
-      await addNews(formData); // Send formData, which includes the file
+      const newData = await addNews(formData); // Send formData, which includes the file
+      console.log(newData)
       setOpenSnackbar(true); // Show success message on successful submission
       onClose(); // Close the dialog on success
       setThumbnailFile(null); // Clear the file input after submission
@@ -319,7 +320,6 @@ const News = () => {
         onChange={handlePageChange}
         sx={{ mt: 2 }}
       />
-      {console.log(newsData.currentPage)}
 
       {/* Add News Dialog */}
       <AddNews open={openAddNewsDialog} onClose={handleCloseAddNewsDialog} />

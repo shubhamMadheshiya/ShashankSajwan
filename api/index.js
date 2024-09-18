@@ -43,7 +43,9 @@ passportConfig.initializePassport(app);
 
 // Routes
 app.use("/", require("./src/routes/root"));
-app.use("/news", require("./src/routes/news"))
+app.use('/auth', require('./src/routes/auth'));
+app.use("/news", require("./src/routes/news"));
+app.use('/user', require('./src/routes/user'));
 
 
 
