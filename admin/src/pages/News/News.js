@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -23,6 +23,9 @@ import { Add } from "@mui/icons-material";
 import Breadcrumb from "../../components/Breadcrumb";
 import NewsCard from "../../components/NewsCard";
 import { useGetNewsQuery, useAddNewsMutation } from "./newsApi"; // Import RTK Query hooks
+import { useDispatch } from "react-redux";
+import { setMessage } from "../../features/messageSlice"; // Import the message actions
+import { ReactComponent as MyIcon } from "../../assets/500.svg";
 
 // Autocomplete options
 const months = [
@@ -50,8 +53,7 @@ const AddNews = ({ open, onClose }) => {
   const [thumbnailFile, setThumbnailFile] = useState(null); // State for the file
   const [thumbnailPreview, setThumbnailPreview] = useState(""); // State for file preview
   const [fileError, setFileError] = useState(""); // State for file error
-  const [openSnackbar, setOpenSnackbar] = useState(false); // Control Snackbar open/close
-
+  const dispatch = useDispatch();
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -73,6 +75,20 @@ const AddNews = ({ open, onClose }) => {
       }
     }
   };
+  useEffect(() => {
+    if (error) {
+      console.log(error.data.error);
+      dispatch(setMessage({ message: error.data.error, severity: "error" }));
+    }
+    if (isSuccess) {
+      dispatch(
+        setMessage({
+          message: "File is successfully Added",
+          severity: "success",
+        })
+      );
+    }
+  }, [isSuccess, error]);
 
   const handleFormSubmit = async (event) => {
     event.preventDefault();
@@ -88,21 +104,13 @@ const AddNews = ({ open, onClose }) => {
 
     try {
       const newData = await addNews(formData); // Send formData, which includes the file
-      console.log(newData)
-      setOpenSnackbar(true); // Show success message on successful submission
+   
       onClose(); // Close the dialog on success
       setThumbnailFile(null); // Clear the file input after submission
       setThumbnailPreview(""); // Clear the preview after submission
     } catch (err) {
       console.error("Failed to add news:", err);
     }
-  };
-
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setOpenSnackbar(false); // Close the Snackbar
   };
 
   return (
@@ -117,18 +125,6 @@ const AddNews = ({ open, onClose }) => {
           Create the news by adding a thumbnail image and Drive link.
         </DialogContentText>
 
-        {/* Show success message using Snackbar */}
-        <Snackbar
-          open={openSnackbar}
-          autoHideDuration={3000}
-          onClose={handleSnackbarClose}
-          message="News added successfully!"
-        />
-
-        {/* Show alert messages (error, warning) */}
-        {error && (
-          <Alert severity="error">Failed to add news: {error.message}</Alert>
-        )}
         {fileError && <Alert severity="warning">{fileError}</Alert>}
 
         <TextField
@@ -148,7 +144,7 @@ const AddNews = ({ open, onClose }) => {
           <Avatar
             alt="Thumbnail Preview"
             src={thumbnailPreview} // Preview of the selected image
-            sx={{  width: 200, height: 120, mt: 2 }}
+            sx={{ width: 200, height: 120, mt: 2 }}
             variant="rounded"
           />
         ) : (
@@ -162,7 +158,7 @@ const AddNews = ({ open, onClose }) => {
                 <Add />
               )
             }
-            sx={{ mt: 2 }}
+            sx={{ mt: 2, bgcolor: "black" }}
             disabled={isLoading} // Disable button while loading
           >
             Upload Thumbnail
@@ -179,7 +175,11 @@ const AddNews = ({ open, onClose }) => {
         <Button onClick={onClose} disabled={isLoading}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isLoading || !!fileError}>
+        <Button
+          type="submit"
+          disabled={isLoading || !!fileError}
+          variant="contained"
+        >
           {isLoading ? (
             <CircularProgress color="success" size={24} />
           ) : (
@@ -202,6 +202,7 @@ const News = () => {
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [page, setPage] = useState(1); // Track current page
   const limit = 12; // Define items per page
+  const dispatch = useDispatch();
 
   // Convert selectedMonth to number if selectedMonth is an object
   const monthNumber = selectedMonth ? selectedMonth.value : null;
@@ -218,6 +219,13 @@ const News = () => {
     year: selectedYear,
   });
 
+  useEffect(() => {
+    if (error) {
+      console.log(error.data.error);
+      dispatch(setMessage({ message: error.data.error, severity: "error" }));
+    }
+  }, [error]);
+
   const handleOpenAddNewsDialog = () => setOpenAddNewsDialog(true);
   const handleCloseAddNewsDialog = () => setOpenAddNewsDialog(false);
 
@@ -225,8 +233,35 @@ const News = () => {
     setPage(value); // Update page when Pagination component is used
   };
 
-  if (isLoading) return <Typography>Loading...</Typography>;
-  if (error) return <Typography>Error loading news</Typography>;
+  if (isLoading)
+    return (
+      <Stack
+        sx={{
+          height: "80vh", // Ensures full viewport height
+          width: "100%", // Ensures full width
+          justifyContent: "center", // Centers content vertically
+          alignItems: "center", // Centers content horizontally
+        }}
+      >
+        <CircularProgress size="3rem" />
+      </Stack>
+    );
+  if (error)
+    return (
+      <Stack
+        sx={{
+          height: "80vh", // Ensures full viewport height
+          width: "100%", // Ensures full width
+          justifyContent: "center", // Centers content vertically
+          alignItems: "center", // Centers content horizontally
+        }}
+      >
+        <MyIcon width={340} height={340} />
+        <Typography variant="h6" color="error">
+          {error.data.error}
+        </Typography>
+      </Stack>
+    );
 
   return (
     <Stack justifyContent="center" alignItems="center" sx={{ p: 2 }}>
@@ -299,7 +334,7 @@ const News = () => {
       </Stack>
 
       {/* News Cards */}
-      <Box minHeight="64vh">
+      <Box minHeight="64vh" width="100%">
         <Grid container spacing={2} my={4}>
           {newsData.data.length > 0 ? (
             newsData.data.map((newsItem) => (

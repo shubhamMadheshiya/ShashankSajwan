@@ -7,7 +7,7 @@ const Layout = () => {
   return (
     <>
       <Header />
-      <Container maxWidth="xl" sx={{py:4}}>
+      <Container maxWidth="lg"  sx={{py:4}}>
         <Outlet />
       </Container>
     </>

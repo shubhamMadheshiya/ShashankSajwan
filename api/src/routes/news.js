@@ -27,24 +27,23 @@ const removeImage = async (imageKey) => {
 	}
 };
 
-// GET: Fetch news by ID
-router.get('/:id', async (req, res) => {
-	try {
-		const news = await News.findById(req.params.id).select('-imageKey');
-		if (!news) {
-			return res.status(404).json({ error: 'No news found' });
-		}
-		res.status(200).json({ success: true, data: news });
-	} catch (error) {
-		res.status(500).json({ error: 'Server error, please try again later.' });
-	}
-});
+// // GET: Fetch news by ID
+// router.get('/:id', async (req, res) => {
+// 	try {
+// 		const news = await News.findById(req.params.id).select('-imageKey');
+// 		if (!news) {
+// 			return res.status(404).json({ error: 'No news found' });
+// 		}
+// 		res.status(200).json({ success: true, data: news });
+// 	} catch (error) {
+// 		res.status(500).json({ error: 'Server error, please try again later.' });
+// 	}
+// });
 
 // POST: Add news
 // POST: Add news
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', auth, upload.single('image'), async (req, res) => {
 	const { driveLink } = req.body;
-	console.log(driveLink)
 
 	// Check if the driveLink is present
 	if (!driveLink) {
@@ -75,9 +74,10 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // PUT: Update news by ID
-router.put('/:id', upload.single('image'), async (req, res) => {
+router.put('/:id', auth, upload.single('image'), async (req, res) => {
 	const { driveLink } = req.body;
 	const newsId = req.params.id;
+	
 
 	try {
 		const news = await News.findById(newsId);
@@ -87,7 +87,6 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 
 		const updateData = {};
 		if (driveLink) updateData.driveLink = driveLink;
-		
 
 		if (req.file) {
 			await removeImage(news.imageKey);
@@ -110,9 +109,9 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 });
 
 // DELETE: Delete news by ID
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
 	const newsId = req.params.id;
-
+	
 	try {
 		const news = await News.findByIdAndDelete(newsId);
 		if (!news) {
@@ -131,7 +130,6 @@ router.delete('/:id', async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
-	
 	const { page = 1, limit = 12, month, year } = req.query;
 
 	try {
@@ -164,10 +162,8 @@ router.get('/', async (req, res) => {
 			.limit(limit * 1) // Limit the number of results
 			.skip((page - 1) * limit); // Skip records for pagination
 
-			console.log(newses)
-
 		const count = await News.countDocuments(query); // Get total count with the applied filters
-		
+
 		res.status(200).json({
 			success: true,
 			data: newses,

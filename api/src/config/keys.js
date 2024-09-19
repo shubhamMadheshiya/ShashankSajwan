@@ -1,6 +1,6 @@
 module.exports = {
 	app: {
-		name: 'AnyTru',
+		name: 'Sajawan',
 		apiURL: process.env.BASE_API_URL,
 		clientURL: process.env.CLIENT_URL,
 		adminURL: process.env.ADMIN_URL

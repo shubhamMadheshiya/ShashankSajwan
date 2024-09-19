@@ -1,13 +1,15 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { apiSlice } from "./apiSlice"; // Reuse base query and token logic
+// authApiSlice.js file
+import { apiSlice } from "../../app/api/apiSlice"; // Import the base API slice
 
-export const authApi = apiSlice.injectEndpoints({
+// Inject endpoints specific to authentication
+export const authApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getUser: builder.query({
-      query: () => "user/",
-      providesTags: ["Auth"], // Use Auth tag for cache invalidation
+      query: () => "/user", // API endpoint for getting the user
+      providesTags: ["Auth"], // Optional caching tag
     }),
   }),
+  overrideExisting: false, // Ensure we don't override existing endpoints
 });
 
-export const { useGetUserQuery } = authApi;
+export const { useGetUserQuery } = authApiSlice; // Export the hook

@@ -1,16 +1,14 @@
 const passport = require('passport');
 const JwtStrategy = require('passport-jwt').Strategy;
 const GoogleStrategy = require('passport-google-oauth2').Strategy;
-const FacebookStrategy = require('passport-facebook').Strategy;
 const ExtractJwt = require('passport-jwt').ExtractJwt;
 const mongoose = require('mongoose');
 
 const keys = require('./keys');
-const { EMAIL_PROVIDER } = require('../constants');
+const { EMAIL_PROVIDER, ADMIN_EMAILS } = require('../constants');
 const User = require('../models/User'); // Adjust the path if necessary
 
-const { google, facebook } = keys;
-
+const { google } = keys;
 const secret = keys.jwt.secret;
 
 const opts = {};
@@ -33,30 +31,34 @@ passport.use(
 );
 
 const googleAuth = () => {
-
 	passport.use(
 		new GoogleStrategy(
 			{
 				clientID: google.clientID,
 				clientSecret: google.clientSecret,
-				callbackURL: "/auth/google/callback",
-				scope: ['profile', 'email'],
+				callbackURL: '/auth/google/callback',
+				scope: ['profile', 'email']
 			},
 			async (accessToken, refreshToken, profile, done) => {
 				try {
-					let user = await User.findOne({ email: profile.email });
+					// Check if the email is allowed for login
+					const userEmail = profile.email;
+					if (!ADMIN_EMAILS.includes(userEmail)) {
+						return done(null, false, { message: 'Unauthorized: Email not allowed for admin login' });
+					}
+
+					// Check if the user exists
+					let user = await User.findOne({ email: userEmail });
 					if (user) {
 						return done(null, user);
 					}
 
-				
-
+					// Create a new user if they don't exist
 					const name = profile.displayName.split(' ');
-
 					const newUser = new User({
 						provider: EMAIL_PROVIDER.Google,
 						googleId: profile.id,
-						email: profile.email,
+						email: userEmail,
 						firstName: name[0],
 						lastName: name[1],
 						avatar: profile.picture,
@@ -73,47 +75,10 @@ const googleAuth = () => {
 	);
 };
 
-const facebookAuth = () => {
-	passport.use(
-		new FacebookStrategy(
-			{
-				clientID: facebook.clientID,
-				clientSecret: facebook.clientSecret,
-				callbackURL: facebook.callbackURL,
-				profileFields: ['id', 'displayName', 'name', 'emails', 'picture.type(large)']
-			},
-			async (accessToken, refreshToken, profile, done) => {
-				try {
-					let user = await User.findOne({ facebookId: profile.id });
-					if (user) {
-						return done(null, user);
-					}
-
-					const newUser = new User({
-						provider: EMAIL_PROVIDER.Facebook,
-						facebookId: profile.id,
-						email: profile.emails ? profile.emails[0].value : null,
-						firstName: profile.name.givenName,
-						lastName: profile.name.familyName,
-						avatar: profile.photos[0].value,
-						password: null
-					});
-
-					user = await newUser.save();
-					return done(null, user);
-				} catch (err) {
-					return done(err, false);
-				}
-			}
-		)
-	);
-};
-
 module.exports = {
 	initializePassport: (app) => {
 		app.use(passport.initialize());
-		googleAuth();
-		facebookAuth();
+		googleAuth(); // Initialize only Google authentication
 	},
 	passport
 };

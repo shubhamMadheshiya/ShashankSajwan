@@ -19,7 +19,7 @@ const Auth = () => {
       spacing={2}
       alignItems="center"
       justifyContent="center"
-      sx={{ height: "80vh" }}
+      sx={{ height: "100vh" }}
     >
       {/* Left side with image */}
       <Grid

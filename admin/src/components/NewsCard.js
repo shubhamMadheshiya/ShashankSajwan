@@ -3,6 +3,7 @@ import Card from "@mui/material/Card";
 import CardMedia from "@mui/material/CardMedia";
 import CardActions from "@mui/material/CardActions";
 import IconButton from "@mui/material/IconButton";
+import { setMessage } from "../features/messageSlice"; 
 import {
   AttachFile,
   CloudUpload,
@@ -31,12 +32,14 @@ import {
   useDeleteNewsMutation,
   useEditNewsMutation,
 } from "../pages/News/newsApi"; // Import RTK hooks
+import { useDispatch } from "react-redux";
 
 // Delete Dialog Component
 const DeleteDialog = ({ open, onClose, newsItem, setDeleteOpen }) => {
+  const dispatch = useDispatch(); // Get the dispatch function from Redux
   const [deleteNews, { isLoading, error, isSuccess }] = useDeleteNewsMutation();
-  const [successSnackbar, setSuccessSnackbar] = React.useState(false);
 
+  // Handle the delete action
   const handleDelete = async () => {
     try {
       await deleteNews(newsItem._id);
@@ -46,15 +49,28 @@ const DeleteDialog = ({ open, onClose, newsItem, setDeleteOpen }) => {
       setDeleteOpen(false);
     }
   };
-  const handleSnackbarClose = () => {
-    setSuccessSnackbar(false);
-  };
 
+  // Handle success and error using useEffect
   React.useEffect(() => {
+    if (error) {
+      dispatch(
+        setMessage({
+          message: error?.data?.error || "Failed to delete news",
+          severity: "error",
+        })
+      );
+    }
+
     if (isSuccess) {
+      dispatch(
+        setMessage({
+          message: "News item deleted successfully",
+          severity: "success",
+        })
+      );
       setDeleteOpen(false);
     }
-  }, [isSuccess, setDeleteOpen]);
+  }, [isSuccess, error, dispatch, setDeleteOpen]);
 
   return (
     <Dialog open={open} onClose={onClose}>
@@ -67,28 +83,28 @@ const DeleteDialog = ({ open, onClose, newsItem, setDeleteOpen }) => {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleDelete} color="error" disabled={isLoading}>
+        <Button
+          onClick={handleDelete}
+          variant="contained"
+          color="error"
+          disabled={isLoading}
+        >
           {isLoading ? <CircularProgress size={24} /> : "Delete"}
         </Button>
       </DialogActions>
-      <Snackbar
-        open={successSnackbar}
-        autoHideDuration={3000}
-        onClose={handleSnackbarClose}
-        message="News updated successfully!"
-      />
     </Dialog>
   );
 };
+
 
 // Edit Dialog Component
 const EditDialog = ({ open, onClose, newsItem }) => {
   const [thumbnailFile, setThumbnailFile] = React.useState(null);
   const [thumbnailPreview, setThumbnailPreview] = React.useState(
     newsItem?.imageUrl || ""
-  ); // Default to current image
+  );
   const [errorMessage, setErrorMessage] = React.useState(null);
-  const [successSnackbar, setSuccessSnackbar] = React.useState(false);
+  const dispatch = useDispatch();
 
   // RTK Query hook
   const [
@@ -97,21 +113,43 @@ const EditDialog = ({ open, onClose, newsItem }) => {
       isLoading: updateIsLoading,
       error: updateIsError,
       isSuccess: updateIsSuccess,
+      reset: resetUpdateNews, // Use the reset function to reset mutation state
     },
   ] = useEditNewsMutation();
 
+  // Reset fields when dialog closes or newsItem changes
   React.useEffect(() => {
+    if (!open) {
+      setThumbnailFile(null);
+      setThumbnailPreview(newsItem?.imageUrl || "");
+      setErrorMessage(null);
+    }
+  }, [open, newsItem]);
+
+  // Handle success and error states
+  React.useEffect(() => {
+    if (updateIsError) {
+      dispatch(
+        setMessage({ message: updateIsError?.data?.error, severity: "error" })
+      );
+    }
     if (updateIsSuccess) {
-      setSuccessSnackbar(true);
+      dispatch(
+        setMessage({
+          message: "File successfully updated",
+          severity: "success",
+        })
+      );
+      resetUpdateNews(); // Reset the mutation state after success
       onClose();
     }
-  }, [updateIsSuccess, onClose]);
+  }, [updateIsSuccess, updateIsError, dispatch, onClose, resetUpdateNews]);
 
   const handleFormSubmit = async (event) => {
     event.preventDefault();
 
-    const formData = new FormData(event.currentTarget); // Form data
-    formData.append("image", thumbnailFile); // Append the file to formData
+    const formData = new FormData(event.currentTarget);
+    formData.append("image", thumbnailFile);
 
     try {
       await updateNews({ id: newsItem._id, formData });
@@ -139,14 +177,17 @@ const EditDialog = ({ open, onClose, newsItem }) => {
     }
   };
 
-  const handleSnackbarClose = () => {
-    setSuccessSnackbar(false);
+  const handleCancel = () => {
+    setThumbnailFile(null);
+    setThumbnailPreview(newsItem?.imageUrl || ""); // Reset to the original image
+    setErrorMessage(null);
+    onClose(); // Close the dialog
   };
 
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={handleCancel} // Use handleCancel to reset and close
       PaperProps={{ component: "form", onSubmit: handleFormSubmit }}
     >
       <DialogTitle>Edit News Item</DialogTitle>
@@ -161,13 +202,14 @@ const EditDialog = ({ open, onClose, newsItem }) => {
           type="url"
           fullWidth
           variant="outlined"
+          defaultValue={newsItem?.driveLink} // Use defaultValue to avoid controlled issue
         />
 
         <Button
           component="label"
           variant="contained"
           startIcon={<CloudUpload />}
-          sx={{ mt: 2 }}
+          sx={{ mt: 2, bgcolor: "black" }}
         >
           Upload Thumbnail
           <input type="file" hidden onChange={handleFileChange} />
@@ -187,17 +229,15 @@ const EditDialog = ({ open, onClose, newsItem }) => {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button type="submit" disabled={updateIsLoading || !!errorMessage}>
+        <Button onClick={handleCancel}>Cancel</Button>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={updateIsLoading || !!errorMessage}
+        >
           {updateIsLoading ? <CircularProgress size={24} /> : "Update News"}
         </Button>
       </DialogActions>
-      <Snackbar
-        open={successSnackbar}
-        autoHideDuration={3000}
-        onClose={handleSnackbarClose}
-        message="News updated successfully!"
-      />
     </Dialog>
   );
 };
@@ -235,10 +275,10 @@ export default function NewsCard({ newsItem }) {
   };
 
   return (
-    <Card sx={{ maxWidth: 345, minWidth: 280, position: "relative" }}>
+    <Card sx={{ maxWidth: 345, minWidth: 240, position: "relative" }}>
       <CardMedia
         component="img"
-        height="194"
+        height="180"
         image={newsItem.imageUrl}
         // alt={newsItem.title}
         sx={{ width: "100%" }}
@@ -253,12 +293,18 @@ export default function NewsCard({ newsItem }) {
           right: 0,
         }}
       >
+        {/* AttachFile IconButton */}
         <IconButton
           size="small"
           sx={{ bgcolor: "rgba(0, 0, 0, 0.5);", m: 0.4 }}
+          onClick={() => {
+            window.open(newsItem.driveLink, "_blank"); // Open driveLink in a new tab
+          }}
         >
           <AttachFile sx={{ color: "#fff" }} fontSize="small" />
         </IconButton>
+
+        {/* MoreVert IconButton for Menu */}
         <IconButton
           onClick={handleClick}
           size="small"
@@ -267,6 +313,7 @@ export default function NewsCard({ newsItem }) {
           <MoreVert sx={{ color: "#fff" }} fontSize="small" />
         </IconButton>
       </CardActions>
+
       <Menu
         anchorEl={anchorEl}
         id="account-menu"
