@@ -10,6 +10,7 @@ const AuthSuccess = () => {
   useEffect(() => {
     // Extract token from URL
     const token = new URLSearchParams(window.location.search).get("token");
+    console.log(token)
 
     if (token) {
       // Store token in Redux store
