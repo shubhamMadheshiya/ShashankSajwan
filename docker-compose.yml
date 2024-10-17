@@ -17,6 +17,12 @@ services:
       - NODE_ENV=production
     env_file:
       - "./admin/.env" # Reference to the .env file
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:3000"] # Health check for the frontend
+    #   interval: 30s     # Check every 30 seconds
+    #   timeout: 10s      # Timeout after 10 seconds
+    #   retries: 3        # Retry 3 times before considering the service unhealthy
+    #   start_period: 30s # Start checking after 30 seconds
 
   api:
     build:
@@ -31,6 +37,12 @@ services:
       - NODE_ENV=production
     env_file:
       - "./api/.env" # Reference to the .env file
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:5000"] # Health check for the backend
+    #   interval: 30s     # Check every 30 seconds
+    #   timeout: 10s      # Timeout after 10 seconds
+    #   retries: 3        # Retry 3 times before considering the service unhealthy
+    #   start_period: 30s # Start checking after 30 seconds
 
 networks:
   app-network:
