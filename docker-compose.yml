@@ -1,0 +1,37 @@
+services:
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:5000}
+        REACT_APP_NODE_ENV: ${REACT_APP_NODE_ENV:-production}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - app-network
+    container_name: "admin"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - "./admin/.env" # Reference to the .env file
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    networks:
+      - app-network
+    container_name: "api"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - "./api/.env" # Reference to the .env file
+
+networks:
+  app-network:
+    driver: bridge

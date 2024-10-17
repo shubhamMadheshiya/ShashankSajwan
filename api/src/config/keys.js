@@ -1,9 +1,12 @@
+const isProduction = process.env.NODE_ENV === 'production';
+
 module.exports = {
 	app: {
 		name: 'Sajawan',
-		apiURL: process.env.BASE_API_URL,
-		clientURL: process.env.CLIENT_URL,
-		adminURL: process.env.ADMIN_URL
+		apiURL: isProduction ? process.env.BASE_API_URL_PRO : process.env.BASE_API_URL_DEV,
+		adminURL: isProduction ? process.env.ADMIN_URL_PRO : process.env.ADMIN_URL_DEV, // Use localhost for development
+		clientURL: isProduction ? process.env.CLIENT_URL_PRO : process.env.CLIENT_URL_DEV, // Adjust if needed
+		adminDomain: isProduction ? process.env.ADMIN_DOMAIN_PRO : process.env.ADMIN_DOMAIN_DEV
 	},
 	port: process.env.PORT || 5000,
 	database: {

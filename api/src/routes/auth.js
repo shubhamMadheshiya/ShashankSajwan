@@ -18,7 +18,7 @@ router.get(
 router.get(
 	'/google/callback',
 	passport.authenticate('google', {
-		failureRedirect: `${keys.app.adminURL}/login`,
+		failureRedirect: `${keys.app.adminDomain}/login`,
 		session: false
 	}),
 	(req, res) => {
@@ -27,7 +27,7 @@ router.get(
 		};
 		const token = jwt.sign(payload, secret, { expiresIn: tokenLife });
 		const jwtToken = `Bearer ${token}`;
-		res.redirect(`${keys.app.adminURL}/auth/success?token=${jwtToken}`);
+		res.redirect(`${keys.app.adminDomain}/auth/success?token=${jwtToken}`);
 	}
 );
 
