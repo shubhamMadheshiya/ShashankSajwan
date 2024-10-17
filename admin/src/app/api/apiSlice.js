@@ -14,6 +14,8 @@ const baseQuery = fetchBaseQuery({
   prepareHeaders: (headers, { getState }) => {
     const token = getState().auth.token; // Centralized token handling
 
+    console.log(token)
+
     if (token) {
       headers.set("authorization", `${token}`); // Use Bearer token convention
     }
