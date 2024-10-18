@@ -17,7 +17,7 @@ const store = configureStore({
   reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(apiSlice.middleware),
-  // devTools: process.env.NODE_ENV !== "production", // Enable Redux DevTools in development mode only
+  devTools: process.env.REACT_APP_NODE_ENV !== "production", // Enable Redux DevTools in development mode only
 });
 
 // Enable automatic cache refetching, invalidations, etc.
