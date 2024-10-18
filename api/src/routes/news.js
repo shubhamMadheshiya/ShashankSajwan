@@ -5,6 +5,7 @@ const { s3Upload, s3Delete } = require('../utils/storage');
 const News = require('../models/News');
 const auth = require('../middleware/auth');
 const router = express.Router();
+const { isValid, isBefore } = require('date-fns');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -41,35 +42,50 @@ const removeImage = async (imageKey) => {
 // });
 
 // POST: Add news
-// POST: Add news
 router.post('/', auth, upload.single('image'), async (req, res) => {
-	const { driveLink } = req.body;
-
-	// Check if the driveLink is present
-	if (!driveLink) {
-		return res.status(400).json({ error: 'Drive Link is required.' });
-	}
-
-	// Check if the image file is present
-	if (!req.file) {
-		return res.status(400).json({ error: 'Image is required.' });
-	}
+	const { driveLink, customDate } = req.body;
+	let imgKey; // Initialize imgKey variable
 
 	try {
+		// Validate if file is present
+		if (!req.file) {
+			return res.status(400).json({ error: 'Image file is required.' });
+		}
+
 		// Upload the image to S3 or another storage service
 		const { imageUrl, imageKey } = await s3Upload(req.file);
+		imgKey = imageKey; // Store the image key
 
-		// Create a new news entry with the uploaded image and drive link
-		const news = new News({ imageUrl, imageKey, driveLink });
+		// Create a new news entry with the uploaded image, drive link, and custom date
+		const news = new News({ imageUrl, imageKey, driveLink, customDate });
 		await news.save();
 
-		res.status(201).json({
+		return res.status(201).json({
 			success: true,
 			message: 'News has been added successfully!',
 			data: news
 		});
 	} catch (error) {
-		res.status(500).json({ error: 'Server error, please try again later.' });
+		// If there is an error and imgKey exists, remove the image from S3
+		if (imgKey) {
+			await removeImage(imgKey); // Ensure this function handles deletion correctly
+		}
+
+		// Handle Mongoose validation errors
+		if (error.name === 'ValidationError') {
+			const errorMessages = Object.values(error.errors).map((e) => e.message);
+			return res.status(400).json({ error: errorMessages.join(', ') });
+		}
+
+		// Handle duplicate key errors
+		if (error.code === 11000) {
+			const duplicateField = Object.keys(error.keyPattern)[0];
+			return res.status(409).json({ error: `${duplicateField} already exists.` });
+		}
+
+		// General server error
+		console.error('Server error:', error);
+		return res.status(500).json({ error: error.message });
 	}
 });
 
@@ -77,7 +93,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 router.put('/:id', auth, upload.single('image'), async (req, res) => {
 	const { driveLink } = req.body;
 	const newsId = req.params.id;
-	
 
 	try {
 		const news = await News.findById(newsId);
@@ -111,7 +126,7 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
 // DELETE: Delete news by ID
 router.delete('/:id', auth, async (req, res) => {
 	const newsId = req.params.id;
-	
+
 	try {
 		const news = await News.findByIdAndDelete(newsId);
 		if (!news) {
@@ -132,25 +147,45 @@ router.delete('/:id', auth, async (req, res) => {
 router.get('/', async (req, res) => {
 	const { page = 1, limit = 12, month, year } = req.query;
 
+	// Validate page and limit
+	const pageNumber = parseInt(page, 10);
+	const limitNumber = parseInt(limit, 10);
+
+	if (isNaN(pageNumber) || pageNumber < 1) {
+		return res.status(400).json({ error: 'Invalid page number.' });
+	}
+	if (isNaN(limitNumber) || limitNumber < 1) {
+		return res.status(400).json({ error: 'Invalid limit number.' });
+	}
+
 	try {
 		const query = {}; // Empty filter query object
 
 		// Filter by month and year if provided
 		if (month && year) {
-			const startDate = new Date(year, month - 1, 1); // First day of the month
-			const endDate = new Date(year, month, 0, 23, 59, 59); // Last day of the month
+			const monthNumber = parseInt(month, 10);
+			const yearNumber = parseInt(year, 10);
 
-			// Add date range to the query filter
-			query.createdAt = {
+			if (monthNumber < 1 || monthNumber > 12 || isNaN(yearNumber)) {
+				return res.status(400).json({ error: 'Invalid month or year.' });
+			}
+
+			const startDate = new Date(yearNumber, monthNumber - 1, 1); // First day of the month
+			const endDate = new Date(yearNumber, monthNumber, 0, 23, 59, 59); // Last day of the month
+
+			query.customDate = {
 				$gte: startDate,
 				$lt: endDate
 			};
 		} else if (year) {
-			// Filter by year if only year is provided
-			const startDate = new Date(year, 0, 1); // First day of the year
-			const endDate = new Date(year, 11, 31, 23, 59, 59); // Last day of the year
+			const yearNumber = parseInt(year, 10);
+			if (isNaN(yearNumber)) {
+				return res.status(400).json({ error: 'Invalid year.' });
+			}
+			const startDate = new Date(yearNumber, 0, 1); // First day of the year
+			const endDate = new Date(yearNumber, 11, 31, 23, 59, 59); // Last day of the year
 
-			query.createdAt = {
+			query.customDate = {
 				$gte: startDate,
 				$lt: endDate
 			};
@@ -158,17 +193,17 @@ router.get('/', async (req, res) => {
 
 		// Execute the query with pagination
 		const newses = await News.find(query)
-			.sort('-createdAt') // Sort by newest first
-			.limit(limit * 1) // Limit the number of results
-			.skip((page - 1) * limit); // Skip records for pagination
+			.sort('-customDate') // Sort by newest first
+			.limit(limitNumber) // Limit the number of results
+			.skip((pageNumber - 1) * limitNumber); // Skip records for pagination
 
 		const count = await News.countDocuments(query); // Get total count with the applied filters
-
+		
 		res.status(200).json({
 			success: true,
 			data: newses,
-			totalPages: Math.ceil(count / limit),
-			currentPage: Number(page),
+			totalPages: Math.ceil(count / limitNumber),
+			currentPage: pageNumber,
 			totalItems: count
 		});
 	} catch (error) {

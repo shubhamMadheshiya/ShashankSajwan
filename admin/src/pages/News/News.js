@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import dayjs from "dayjs"; // Import dayjs
+
 import {
   Box,
   Button,
@@ -20,6 +22,9 @@ import {
   Snackbar,
 } from "@mui/material";
 import { Add } from "@mui/icons-material";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Breadcrumb from "../../components/Breadcrumb";
 import NewsCard from "../../components/NewsCard";
 import { useGetNewsQuery, useAddNewsMutation } from "./newsApi"; // Import RTK Query hooks
@@ -53,7 +58,10 @@ const AddNews = ({ open, onClose }) => {
   const [thumbnailFile, setThumbnailFile] = useState(null); // State for the file
   const [thumbnailPreview, setThumbnailPreview] = useState(""); // State for file preview
   const [fileError, setFileError] = useState(""); // State for file error
+  const [newsDate, setNewsDate] = useState(dayjs()); // State for selected date, initialized to current date
   const dispatch = useDispatch();
+  console.log("news date", newsDate);
+
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -75,6 +83,7 @@ const AddNews = ({ open, onClose }) => {
       }
     }
   };
+
   useEffect(() => {
     if (error) {
       console.log(error.data.error);
@@ -87,6 +96,10 @@ const AddNews = ({ open, onClose }) => {
           severity: "success",
         })
       );
+      onClose(); // Close the dialog on success
+      setThumbnailFile(null); // Clear the file input after submission
+      setThumbnailPreview(""); // Clear the preview after submission
+      setNewsDate(dayjs()); // Reset the date state to current date
     }
   }, [isSuccess, error]);
 
@@ -102,21 +115,33 @@ const AddNews = ({ open, onClose }) => {
     const formData = new FormData(event.currentTarget); // Form data
     formData.append("image", thumbnailFile); // Append the file to formData
 
+    // Append the selected date if available
+    if (newsDate) {
+      formData.append("customDate", newsDate.toISOString()); // Append date in ISO format
+    } else {
+      setFileError("News date is required."); // Set error if date is not selected
+      return;
+    }
+
     try {
       const newData = await addNews(formData); // Send formData, which includes the file
-   
-      onClose(); // Close the dialog on success
-      setThumbnailFile(null); // Clear the file input after submission
-      setThumbnailPreview(""); // Clear the preview after submission
+      console.log(newData);
     } catch (err) {
       console.error("Failed to add news:", err);
     }
   };
 
+  const handleClose = () => {
+    onClose(); // Call the provided onClose function
+    setThumbnailFile(null); // Reset thumbnail file
+    setThumbnailPreview(""); // Reset thumbnail preview
+    setNewsDate(dayjs()); // Reset news date to current date
+  };
+
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={handleClose} // Use the custom handleClose function
       PaperProps={{ component: "form", onSubmit: handleFormSubmit }}
     >
       <DialogTitle>Add News</DialogTitle>
@@ -138,6 +163,25 @@ const AddNews = ({ open, onClose }) => {
           fullWidth
           variant="outlined"
         />
+
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            sx={{ width: "100%", my: 2 }}
+            label="News Date"
+            value={newsDate}
+            onChange={(newValue) => setNewsDate(newValue)} // Update state on date change
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                required
+                value={newsDate.format("DD/MM/YYYY")} // Format the displayed date
+                onChange={(e) =>
+                  setNewsDate(dayjs(e.target.value, "DD/MM/YYYY"))
+                } // Handle manual date input
+              />
+            )}
+          />
+        </LocalizationProvider>
 
         {/* Conditionally render avatar or upload button */}
         {thumbnailPreview ? (
@@ -172,7 +216,7 @@ const AddNews = ({ open, onClose }) => {
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose} disabled={isLoading}>
+        <Button onClick={handleClose} disabled={isLoading}>
           Cancel
         </Button>
         <Button

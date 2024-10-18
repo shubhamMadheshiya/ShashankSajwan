@@ -3,7 +3,8 @@ import Card from "@mui/material/Card";
 import CardMedia from "@mui/material/CardMedia";
 import CardActions from "@mui/material/CardActions";
 import IconButton from "@mui/material/IconButton";
-import { setMessage } from "../features/messageSlice"; 
+import { setMessage } from "../features/messageSlice";
+import { format } from "date-fns";
 import {
   AttachFile,
   CloudUpload,
@@ -21,10 +22,8 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
-  styled,
   TextField,
   Avatar,
-  Snackbar,
   Alert,
   CircularProgress,
 } from "@mui/material";
@@ -95,7 +94,6 @@ const DeleteDialog = ({ open, onClose, newsItem, setDeleteOpen }) => {
     </Dialog>
   );
 };
-
 
 // Edit Dialog Component
 const EditDialog = ({ open, onClose, newsItem }) => {
@@ -248,6 +246,11 @@ export default function NewsCard({ newsItem }) {
   const [editOpen, setEditOpen] = React.useState(false);
   const open = Boolean(anchorEl);
 
+  // Format the date
+  const formattedDate = newsItem.customDate
+    ? format(new Date(newsItem.customDate), "dd/MM/yyyy")
+    : ""; // Fallback to empty string if customDate is not present
+
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -313,6 +316,24 @@ export default function NewsCard({ newsItem }) {
           <MoreVert sx={{ color: "#fff" }} fontSize="small" />
         </IconButton>
       </CardActions>
+      <CardActions
+        disableSpacing
+        sx={{
+          display: "flex",
+          justifyContent: "flex-end",
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+        }}
+      >
+        <Button
+          size="small"
+          variant="contained"
+          sx={{ bgcolor: "rgba(0, 0, 0, 0.5);", m: 0.4 }}
+        >
+          {formattedDate} {/* Use the formatted date here */}
+        </Button>
+      </CardActions>
 
       <Menu
         anchorEl={anchorEl}
@@ -338,7 +359,6 @@ export default function NewsCard({ newsItem }) {
       <DeleteDialog
         open={deleteOpen}
         onClose={handleDeleteClose}
-        // onDelete={handleDelete}
         newsItem={newsItem}
         setDeleteOpen={setDeleteOpen}
       />
