@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = process.env.REACT_APP_NODE_ENV === "production";
 
 const BASE_URL = isProduction
   ? process.env.REACT_APP_API_URL
