@@ -4,17 +4,13 @@ const isProduction = process.env.REACT_APP_NODE_ENV === "production";
 
 const BASE_URL = isProduction
   ? process.env.REACT_APP_API_URL
-  : "http://localhost:5000"
-
-console.log(BASE_URL);
+  : "http://localhost:5000";
 
 // Base query with authorization token logic
 const baseQuery = fetchBaseQuery({
   baseUrl: BASE_URL,
   prepareHeaders: (headers, { getState }) => {
     const token = getState().auth.token; // Centralized token handling
-
-    console.log(token)
 
     if (token) {
       headers.set("authorization", `${token}`); // Use Bearer token convention
