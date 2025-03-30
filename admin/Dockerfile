@@ -6,7 +6,37 @@ WORKDIR /admin
 
 # Build argument to accept environment variables
 ARG REACT_APP_API_URL
-ARG REACT_APP_NODE_ENV
+ARG REACT_APP_NODE_ENV# Build React app
+FROM node:18-alpine as build
+
+# Set working directory inside the container
+WORKDIR /app
+
+# Copy package.json and package-lock.json first
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy all files and build the React app
+COPY . .
+RUN npm run build
+
+# Stage 2: Setup NGINX to serve the built React app
+FROM nginx:latest
+
+# Copy custom NGINX configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy React build output to NGINX's default HTML serving location
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start NGINX
+CMD ["nginx", "-g", "daemon off;"]
+
 
 # Set environment variables for the build
 ENV REACT_APP_API_URL=$REACT_APP_API_URL

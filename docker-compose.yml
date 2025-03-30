@@ -1,48 +1,46 @@
+version: "3.8"
+
 services:
   admin:
     build:
       context: ./admin
       dockerfile: Dockerfile
-      args:
-        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:5000}
-        REACT_APP_NODE_ENV: ${REACT_APP_NODE_ENV:-production}
     ports:
-      - "3000:3000"
+      - "80:80"  # Map container port 80 to host
     depends_on:
-      - api
+      - api1
+      - api2
     networks:
       - app-network
     container_name: "admin"
-    environment:
-      - NODE_ENV=production
-    env_file:
-      - "./admin/.env" # Reference to the .env file
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:3000"] # Health check for the frontend
-    #   interval: 30s     # Check every 30 seconds
-    #   timeout: 10s      # Timeout after 10 seconds
-    #   retries: 3        # Retry 3 times before considering the service unhealthy
-    #   start_period: 30s # Start checking after 30 seconds
 
-  api:
+  api1:
     build:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - "5001:5000"
     networks:
       - app-network
-    container_name: "api"
+    container_name: "api1"
     environment:
       - NODE_ENV=production
     env_file:
-      - "./api/.env" # Reference to the .env file
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:5000"] # Health check for the backend
-    #   interval: 30s     # Check every 30 seconds
-    #   timeout: 10s      # Timeout after 10 seconds
-    #   retries: 3        # Retry 3 times before considering the service unhealthy
-    #   start_period: 30s # Start checking after 30 seconds
+      - "./api/.env"
+
+  api2:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5000"
+    networks:
+      - app-network
+    container_name: "api2"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - "./api/.env"
 
 networks:
   app-network:

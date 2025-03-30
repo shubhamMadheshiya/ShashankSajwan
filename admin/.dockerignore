@@ -4,7 +4,7 @@ build
 Dockerfile
 
 # Ignore local environment files
-.env
+# .env
 .env.local
 
 # Ignore logs
