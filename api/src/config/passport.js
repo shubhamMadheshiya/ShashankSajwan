@@ -36,7 +36,7 @@ const googleAuth = () => {
 			{
 				clientID: google.clientID,
 				clientSecret: google.clientSecret,
-				callbackURL: '/auth/google/callback',
+				callbackURL: '/api/auth/google/callback',
 				scope: ['profile', 'email']
 			},
 			async (accessToken, refreshToken, profile, done) => {
